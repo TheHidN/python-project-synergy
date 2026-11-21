@@ -5,11 +5,10 @@ import sys
 import tempfile
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -17,7 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def iso(days_ahead: float = 3.0) -> str:
-    return (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat(timespec="seconds")
+    return (datetime.now(UTC) + timedelta(days=days_ahead)).isoformat(timespec="seconds")
 
 
 class DispatchCase(RegistryCase):

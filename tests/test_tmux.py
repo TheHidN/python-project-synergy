@@ -7,12 +7,10 @@ import subprocess
 import tempfile
 import unittest
 
-from helpers import RULES_HASH
-
 import clean_env  # noqa: F401
+from helpers import RULES_HASH
 from project_synergy import cli
 from project_synergy import config as C
-from project_synergy import registry as R
 from project_synergy import errors as E
 from project_synergy import registry as R
 from project_synergy import tmux as T

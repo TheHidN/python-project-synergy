@@ -25,7 +25,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 
 
 def _read_only(root: Path) -> None:
-    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+    for dirpath, _dirnames, filenames in os.walk(root, topdown=False):
         for name in filenames:
             path = Path(dirpath) / name
             os.chmod(path, stat.S_IMODE(path.lstat().st_mode) & ~0o222)

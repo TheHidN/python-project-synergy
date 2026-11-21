@@ -6,11 +6,10 @@ import tempfile
 import threading
 import time
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
 from helpers import RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -104,7 +103,7 @@ class TestTakeover(TeamCase):
     def test_another_operator_can_adopt_only_when_the_origin_has_gone_quiet(self) -> None:
         with self.assertRaises(E.NotClaimable):
             R.adopt_request(self.conn, self.rid, "OPS3", stale_minutes=60)
-        old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(timespec="seconds")
+        old = (datetime.now(UTC) - timedelta(hours=3)).isoformat(timespec="seconds")
         self.conn.execute("UPDATE operators SET last_seen=?, listening_at='' WHERE id='OPS1'", (old,))
         R.adopt_request(self.conn, self.rid, "OPS3", stale_minutes=60)
         self.assertEqual(R.get_request(self.conn, self.rid)["origin"], "OPS3")

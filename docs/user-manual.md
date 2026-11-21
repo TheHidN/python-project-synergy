@@ -23,7 +23,7 @@ Requirements: Linux (Ubuntu and Debian are tested; other Linux systems are untes
 
 ```bash
 git clone https://github.com/TheHidN/python-project-synergy.git
-cd project-synergy
+cd python-project-synergy
 ./install.sh
 ```
 
@@ -143,6 +143,10 @@ You approve an operator joining the team once. Only an administrator can record 
 
 What approval does not do: it never lets Synergy kill, close, restart, rename or delete anything, start paid workers, change protected settings, override a hold, or publish anything; those still need your specific approval. The trust model is protection against mistakes and confused sessions, not strong isolation: operator tokens are files readable by every process of the same Unix user, so a process running as that user could act as any operator. If that matters, run operators as separate Unix users. A registry that was upgraded from an older version keeps token checks off until you run `synergy operator token backfill`; `synergy doctor` warns about it, and with checks off every administrator action can be performed by any session, so turn them on. A job for a held project that is filed with no request or task is recorded under `general`, so attach jobs to their request.
 
+### Natural-language delegation
+
+You give any operator an ordinary instruction in its chat; you never mention Synergy. The operator runs `synergy request advise "<your instruction>"`, a local, token-free check that answers DELEGATE or LOCAL (it looks at how many independent parts the instruction has, what skills it needs, who is listening and approved, project scopes and holds, and usage). If DELEGATE, the operator registers it with `synergy request add`, tells you in one line what it handed to whom, collects the results, and gives you one consolidated answer; if LOCAL it just does the work. Operators follow this because the shared rules file tells them to and, for sessions started from a Synergy launcher, the session-start hook repeats it. Nothing is delegated that needs your decision or approval, and delegation never widens what you authorized.
+
 ### Automatic delegation
 
 You give a request to any operator with `synergy request add "..."`. Synergy then does the routine work with local rules, using no Claude tokens:
@@ -156,6 +160,18 @@ You give a request to any operator with `synergy request add "..."`. Synergy the
 Waiting work is offered again whenever something changes: a request arrives, a task finishes, or an operator starts `synergy inbox wait` and becomes idle. Nothing polls and no extra Claude session is started. Inspect decisions with `synergy dispatch status` (each assignment records why that operator was chosen) and `synergy status`. Pause with `synergy dispatch pause` and resume with `synergy dispatch resume` (run them as an operator, with `SYNERGY_OPERATOR` set; `dispatch status` needs no identity): pausing only stops automatic assignment; sessions, manual `request take`, `task claim` and every running task are untouched. Automatic delegation never expands what you asked for, never launches workers, never publishes anything, and never acts on a project that is on hold unless an operator for it is active and agrees.
 
 How a session starts listening: each Claude session runs `synergy inbox wait` itself as a background command (its onboarding packet says so). Synergy does not start Claude sessions or system services on its own.
+
+### Staying available while idle
+
+A session is available while `synergy inbox wait` is running in the background. It costs no Claude tokens while it waits, because it is an ordinary local program that checks the registry every couple of seconds, and since 0.1.0 it has no idle timeout: it ends only when work arrives (exit 0), when the operator is no longer an approved member (exit 6), or when it is told to stop. Because it never ends for nothing, a quiet session is never woken for nothing. When it ends with work, the session reads it, does it, and starts the wait again.
+
+What keeps operators available:
+- **Durable inbox.** Work that arrives while an operator is offline stays in its inbox and is delivered the moment its listener starts again.
+- **Reminder after commands.** An operator that runs a Synergy command without a listener running gets one line on stderr (at most every 10 minutes) telling it to start `inbox wait`.
+- **Optional hooks for sessions started from a Synergy launcher.** `synergy inbox hook` asks a session that is about to stop without a listener to start one (at most 3 times an hour, silent when the operator set itself away with `synergy operator profile --availability BUSY`, when delegation is paused, or when `synergy hook keepalive off`), and still resumes a session for a pending assignment. `synergy inbox session-start` tells a started or resumed operator session to read `synergy team me` and start its listener. Both are bounded, never loop, never block when anything is wrong, and do nothing for sessions that are not operator sessions. Hooks are part of a session's settings, so they are applied only by the owner (see the project notes for the exact settings).
+- **Watchdog.** `synergy watchdog` lists operators that are offline while work waits for them (exit 3 if any) so a person or a scheduled job can see it without using any tokens.
+
+Limits, plainly: Synergy cannot start or wake a Claude session by itself. A session that was closed, crashed or never started a listener stays offline until it is used again; its work waits safely. Resumed conversations lose their background commands, so they must start the listener again (the session-start hook does this for launcher-started sessions). Revoking an operator stops its listener from waiting and blocks new work and access; it does not close its session.
 
 ### How a running Claude session is woken, and what is not automatic
 

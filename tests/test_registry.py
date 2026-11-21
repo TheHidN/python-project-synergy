@@ -1,7 +1,6 @@
 import sqlite3
 
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 

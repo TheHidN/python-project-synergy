@@ -7,7 +7,6 @@ import tempfile
 import unittest
 
 import clean_env  # noqa: F401
-
 from project_synergy import registry as R
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -30,6 +29,7 @@ class HookCase(unittest.TestCase):
         conn = R.open_registry(self.db)
         conn.execute("UPDATE operators SET status='ACTIVE'")
         conn.execute("UPDATE settings SET value='1' WHERE key='require_tokens'")
+        conn.execute("INSERT OR REPLACE INTO settings VALUES ('hook_keepalive','off')")
         conn.close()
 
     def cli(self, *argv: str, op: str | None = None, extra: dict[str, str] | None = None,
