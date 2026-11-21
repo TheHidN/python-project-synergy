@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for the project governance hooks.
+# Shared helpers for the repository git hooks.
 # Works with BSD (macOS) and GNU tooling. Emoji detection uses perl (BSD grep
 # lacks -P); text-pattern detection uses grep -E.
 
@@ -15,7 +15,7 @@ GOV_DOCS_ALLOW_FILE="${GOV_DOCS_ALLOW_FILE:-$GOV_SCRIPTS_DIR/../docs-allowed-ter
 # Markdown doc, the patterns in the docs allow file are left out.
 gov_text_regex() {
   case "${1:-}" in
-    *.md|docs/*)
+    *.md)
       if [ -f "$GOV_DOCS_ALLOW_FILE" ]; then
         grep -vE '^[[:space:]]*(#|$)' "$GOV_PATTERNS_FILE" 2>/dev/null \
           | grep -vxF -f <(grep -vE '^[[:space:]]*(#|$)' "$GOV_DOCS_ALLOW_FILE") | paste -sd '|' -

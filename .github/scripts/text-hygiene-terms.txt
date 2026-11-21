@@ -57,7 +57,7 @@ owner[- ](approved|decided|confirmed|requested)
 (per|from) (the )?owner('s)? (word|direction|instruction|go-ahead)
 (^|[^a-z-])owner (decided|decision|chose|picked|answered|asked|said|wants|prefers|rejected|requested|confirmed)
 
-# --- LLM hedging / filler cliches ---
+# --- Hedging and filler phrases ---
 It('?s| is) important to (note|remember|understand|keep in mind)
 It('?s| is) worth (noting|mentioning|highlighting)
 I hope this helps
@@ -82,7 +82,7 @@ plays a (crucial|vital|key|pivotal|significant) role
 it'?s not just about
 the key (takeaway|thing to remember)
 
-# --- AI structure / boilerplate openers ---
+# --- Boilerplate openers ---
 Here('?s| is) (a |an )?(breakdown|summary|quick overview|rundown|high-level overview)
 In (summary|conclusion|essence),
 To (summarize|conclude|sum up),
@@ -95,7 +95,7 @@ Below is (a|an|the)
 Let'?s get started
 Let'?s break (it|this) down
 
-# --- OPT-IN: single-word AI buzzwords (disabled by default) ---
+# --- OPT-IN: single-word buzzwords (disabled by default) ---
 # These read as generated but also appear in legitimate docs, so they would
 # false-positive on real source/READMEs. Uncomment any you want enforced.
 # seamless(ly)?

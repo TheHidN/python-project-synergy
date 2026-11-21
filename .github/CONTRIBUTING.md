@@ -25,3 +25,5 @@ Install the git hooks once per clone: `bash .github/scripts/install.sh`. They en
 Conventional Commits and the text rules (no blocked phrases, no emoji in commits or source)
 before you push; CI enforces the same. In a Linux-only repo (one with a `.github/linux-only`
 marker) the pre-push build/lint/test gate is not installed and CI is the gate.
+
+The Linux-only marker is `.github/linux-only` (it was `.claude/linux-only` in earlier clones; a marker left at the old path is ignored, so move it).
