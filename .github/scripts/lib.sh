@@ -9,7 +9,7 @@ GOV_PATTERNS_FILE="${GOV_PATTERNS_FILE:-$GOV_SCRIPTS_DIR/text-hygiene-terms.txt}
 # from the patterns file). Laid down only for ecosystems whose docs must name a
 # product the list blocks, such as a tool whose documentation names the CLI it depends on.
 # Found from the scripts dir (.github/scripts), so the cwd does not matter.
-GOV_DOCS_ALLOW_FILE="${GOV_DOCS_ALLOW_FILE:-$GOV_SCRIPTS_DIR/../../.github/docs-allowed-text-hygiene-terms.txt}"
+GOV_DOCS_ALLOW_FILE="${GOV_DOCS_ALLOW_FILE:-$GOV_SCRIPTS_DIR/../docs-allowed-terms.txt}"
 
 # Build one extended-regex alternation from the patterns file. With a path to a
 # Markdown doc, the patterns in the docs allow file are left out.

@@ -32,7 +32,7 @@ EXIT_OK, EXIT_USAGE, EXIT_REFUSED, EXIT_NOT_INIT = 0, 2, 3, 4
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="synergy", description="Project Synergy: coordinate several Claude Code sessions (operators) with shared task ownership."
+        prog="synergy", description="Project Synergy: coordinate several Claude command-line sessions (operators) with shared task ownership."
     )
     p.add_argument("--version", action="version", version=f"synergy {__version__}")
     sub = p.add_subparsers(dest="group")

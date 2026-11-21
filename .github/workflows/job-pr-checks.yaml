@@ -87,7 +87,7 @@ jobs:
             esac
             # Blocked phrases are rejected except in files that document the rule.
             case "$f" in
-              .github/scripts/*|*/.github/scripts/*|.github/workflows/*|*text-hygiene-terms.txt) : ;;
+              .github/scripts/*|*/.github/scripts/*|.github/workflows/*|*text-hygiene-terms.txt|*docs-allowed-terms.txt) : ;;
               *) t="$(gov_find_file_issues "$f")"; [ -n "$t" ] && { echo "Blocked phrase not allowed in $f:"; echo "$t"; fail=1; } ;;
             esac
           done < <(git diff --name-only --diff-filter=ACM "$BASE" "$HEAD")

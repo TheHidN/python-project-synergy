@@ -1,6 +1,6 @@
 """project-synergy
 
-Task-ownership registry and coordination tool for multiple Claude Code sessions: shared task registry, operator onboarding and tmux worker management
+Task-ownership registry and coordination tool for multiple Claude command-line sessions: shared task registry, operator onboarding and tmux worker management
 """
 
 __version__ = "0.1.1"

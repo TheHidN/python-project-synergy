@@ -23,7 +23,7 @@ text_exempt() {
     .github/scripts/*|*/.github/scripts/*) return 0 ;;
     governance/*|*/governance/*) return 0 ;;
     .github/workflows/*|*workflows/*.yml|*workflows/*.yaml) return 0 ;;
-    *text-hygiene-terms.txt) return 0 ;;
+    *text-hygiene-terms.txt|*docs-allowed-terms.txt) return 0 ;;
     *) return 1 ;;
   esac
 }
