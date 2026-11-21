@@ -1,0 +1,33 @@
+# Project Synergy configuration. Copy to ~/.config/synergy/config.toml (or $SYNERGY_CONFIG_DIR/config.toml).
+# Every key is optional; the values below are the defaults.
+
+# Where the registry (the shared task database) lives. Empty means ~/.local/state/synergy.
+state_dir = ""
+
+[operators]
+# Operators created by `synergy init`, each with its own automatically generated token (stored owner-only,
+# never printed). Add more later with `synergy operator register NAME`.
+initial = ["OPS1", "OPS2"]
+
+[limits]
+# Most workers that may be active at once, across all operators combined.
+max_workers = 2
+# An operator quiet for this long is only REPORTED as stale; its tasks are never reassigned automatically.
+stale_after_minutes = 60
+
+[tmux]
+# The managed tmux server and session. A separate socket keeps Synergy's windows away from your own tmux.
+# It is a convenience, not a security boundary.
+socket = "synergy"
+session = "SYNERGY"
+
+[safety]
+# tmux sessions Synergy must never touch. Sessions on other sockets are never touched anyway.
+protected_sessions = []
+
+# [onboarding]
+# Files every new operator reads and acknowledges (the installer sets this for you).
+# rules_files = ["~/.config/synergy/rules/synergy-rules.md"]
+# The command that starts a Claude session in an operator's launcher, and extra flags.
+# launch_command = "claude"
+# launch_args = []

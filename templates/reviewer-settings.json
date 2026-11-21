@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "defaultMode": "dontAsk",
+    "denyInsteadOfPrompting": true,
+    "allow": [
+      "Bash(bash ./kit/run-tests.sh *)",
+      "Bash(bash ./kit/run-probe.sh *)",
+      "Write(./work/**)",
+      "Edit(./work/**)",
+      "Write(./REVIEW*.md)",
+      "Edit(./REVIEW*.md)"
+    ],
+    "ask": [
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(killall *)",
+      "Bash(tmux *)",
+      "Bash(rm *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(git push*)",
+      "Bash(sh -c *)",
+      "Bash(bash -c *)",
+      "Bash(sudo *)",
+      "Bash(python3 -c *)",
+      "Bash(perl -e *)",
+      "Bash(node -e *)",
+      "Bash(env rm *)",
+      "Bash(command rm *)",
+      "Bash(nohup *)",
+      "Bash(xargs rm *)",
+      "Bash(mv *)",
+      "Bash(truncate *)",
+      "Bash(dd *)",
+      "Bash(tmux -S * kill-session *)",
+      "Bash(tmux -S * kill-window *)",
+      "Bash(tmux -f * kill-session *)",
+      "Bash(git branch -d *)",
+      "Bash(git push origin --delete *)",
+      "Bash(git worktree prune*)",
+      "Bash(git checkout .*)",
+      "Bash(docker kill *)",
+      "Bash(docker stop *)",
+      "Bash(docker compose down*)",
+      "Bash(systemctl stop *)",
+      "Bash(systemctl --user kill *)"
+    ],
+    "deny": []
+  }
+}

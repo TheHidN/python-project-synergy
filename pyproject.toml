@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "project-synergy"
+version = "0.1.0"
+description = "Multi-Claude collaboration and orchestration system: shared task registry, operator onboarding and tmux worker management"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "TheHidN" }]
+dependencies = []
+
+[project.scripts]
+synergy = "project_synergy.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/TheHidN/project-synergy"
+Issues = "https://github.com/TheHidN/project-synergy/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/project_synergy"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
