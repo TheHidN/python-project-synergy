@@ -19,7 +19,7 @@ See the [five-minute quick start](quick-start.md). It takes you from a fresh clo
 
 ## Installation
 
-Requirements: Linux (Ubuntu and Debian are tested; other Linux systems are untested), Python 3.11 or later with no extra packages, git, tmux, and Anthropic's Claude command-line tool. Bubblewrap is needed only for the reviewer kit.
+Requirements: Linux (Ubuntu and Debian are tested; other Linux systems are untested), Python 3.11 or later with no extra packages, git, tmux, and Claude Code (Anthropic's command-line tool). Bubblewrap is needed only for the reviewer kit.
 
 ```bash
 git clone https://github.com/TheHidN/python-project-synergy.git
@@ -40,7 +40,7 @@ Where things live (the defaults; each can be changed with an environment variabl
 
 ## Claude setup
 
-Project Synergy does not install Claude or sign in for you. Install Anthropic's Claude command-line tool yourself and sign in once with your own account. Each operator is one Claude session, so each needs an account that can sign in: you may use one account for several operators, or one account per operator. Accounts do not share memory, context or usage, and Synergy never assumes they do.
+Project Synergy does not install Claude or sign in for you. Install Claude Code (Anthropic's command-line tool) yourself and sign in once with your own account. Each operator is one Claude session, so each needs an account that can sign in: you may use one account for several operators, or one account per operator. Accounts do not share memory, context or usage, and Synergy never assumes they do.
 
 The installer creates a launcher for every initial operator. A launcher sets the session's identity and starts the Claude command with a first instruction to read that operator's packet. Which permission mode your operators run in is your decision; Synergy does not change it. The default launcher adds no permission flags. To add flags, set them in the config (see the Configuration guide), knowing the Safety guide's cautions about bypass mode.
 

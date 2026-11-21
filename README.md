@@ -1,6 +1,6 @@
 # Project Synergy 🤝
 
-> 🧭 Multi-Claude collaboration and orchestration: several Claude sessions share one task registry, claim work without duplicating it, and are managed from one tmux workspace.
+> 🧭 Coordination for several Claude Code sessions: they share one task registry, claim work without duplicating it, and are managed from one tmux workspace.
 
 ## ✨ What it does
 
@@ -10,7 +10,7 @@
 - 🖥 **Managed tmux workspace.** A separate tmux socket holds worker windows, with a limit on how many run at once.
 - 📬 **Type a request once.** `synergy request add` records plain-English work, notifies the whole team through durable inboxes, and gives you one consolidated answer from the operator you asked. Any number of operators, no polling.
 - 🧑‍🤝‍🧑 **One shared specialist pool.** Every operator can request work from the same registered agents; reservations are atomic, busy agents queue work by priority, and results are kept for everyone.
-- 🔍 **Read-only monitoring.** Status, worker states and window inspection use ordinary local commands, not Claude.
+- 🔍 **Read-only monitoring.** Status, worker states and window inspection use ordinary local commands and no model calls.
 - 🧪 **Interruption-free reviewers.** `synergy review prepare` builds an isolated review folder and a sandbox so a reviewer can read, test and report without asking you for permission.
 
 ## 🚀 Quick start
@@ -39,7 +39,7 @@ Registry ownership stops operators from duplicating work. It does not stop a she
 - Linux (Ubuntu and Debian are the tested systems; others are untested).
 - Python 3.11 or later, with no extra packages.
 - git and tmux. Bubblewrap is needed only for the isolated reviewer kit.
-- Anthropic's Claude command-line tool, installed and signed in by you.
+- Claude Code (Anthropic's command-line tool), installed and signed in by you. Synergy coordinates Claude Code sessions and does not work with other providers.
 
 ## 🧪 Develop and test
 

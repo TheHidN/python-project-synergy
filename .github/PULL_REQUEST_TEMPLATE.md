@@ -1,6 +1,6 @@
 <!--
 Title MUST be a Conventional Commit: type(scope): description.
-No AI tells or emoji anywhere (enforced by hooks and CI).
+No emoji or blocked phrases (enforced by hooks and CI).
 -->
 
 ## What and why

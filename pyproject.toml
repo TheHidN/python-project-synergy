@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "project-synergy"
 version = "0.1.1"
-description = "Multi-Claude collaboration and orchestration system: shared task registry, operator onboarding and tmux worker management"
+description = "Task-ownership registry and coordination tool for multiple Claude command-line sessions: shared task registry, operator onboarding and tmux worker management"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

@@ -1,12 +1,11 @@
-# AI-tell text patterns blocked in commit messages, issue/PR titles and bodies,
+# Text patterns blocked in commit messages, issue/PR titles and bodies,
 # comments, and source files. Extended-regex (grep -E), matched case-insensitively.
 # One pattern per line. Lines beginning with # and blank lines are ignored.
 # Emoji are blocked separately by unicode range (see lib.sh), not listed here.
 #
-# Goal: HUMAN WRITE, not CLAUDE WRITE. Every human-facing artifact should read
-# as if a person wrote it. The ACTIVE patterns below are reliable generated-text
-# fingerprints: attribution trailers, assistant self-reference, working-session
-# framing, and the multi-word filler/cliche phrasing that betrays an LLM. They
+# Goal: every human-facing artifact reads plainly and neutrally. The ACTIVE
+# patterns below are attribution trailers, assistant self-reference,
+# working-session framing and multi-word filler phrasing. They
 # are multi-word on purpose, to avoid false positives on real source and docs.
 #
 # Single common buzzwords (robust, comprehensive, leverage, ...) live in the
@@ -58,7 +57,7 @@ owner[- ](approved|decided|confirmed|requested)
 (per|from) (the )?owner('s)? (word|direction|instruction|go-ahead)
 (^|[^a-z-])owner (decided|decision|chose|picked|answered|asked|said|wants|prefers|rejected|requested|confirmed)
 
-# --- LLM hedging / filler cliches ---
+# --- Hedging and filler phrases ---
 It('?s| is) important to (note|remember|understand|keep in mind)
 It('?s| is) worth (noting|mentioning|highlighting)
 I hope this helps
@@ -83,7 +82,7 @@ plays a (crucial|vital|key|pivotal|significant) role
 it'?s not just about
 the key (takeaway|thing to remember)
 
-# --- AI structure / boilerplate openers ---
+# --- Boilerplate openers ---
 Here('?s| is) (a |an )?(breakdown|summary|quick overview|rundown|high-level overview)
 In (summary|conclusion|essence),
 To (summarize|conclude|sum up),
@@ -96,7 +95,7 @@ Below is (a|an|the)
 Let'?s get started
 Let'?s break (it|this) down
 
-# --- OPT-IN: single-word AI buzzwords (disabled by default) ---
+# --- OPT-IN: single-word buzzwords (disabled by default) ---
 # These read as generated but also appear in legitimate docs, so they would
 # false-positive on real source/READMEs. Uncomment any you want enforced.
 # seamless(ly)?

@@ -1,0 +1,3 @@
+# Patterns allowed in Markdown documentation only (copied exactly from text-hygiene-terms.txt).
+# The README and docs must name the command-line tool this project depends on.
+Claude Code

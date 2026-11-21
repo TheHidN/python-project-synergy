@@ -23,7 +23,7 @@ launcher set `SYNERGY_OPERATOR`.
 | `synergy dispatch` | automatic delegation of requests and tasks to eligible operators |
 | `synergy usage` | weekly Claude usage per account, used to balance new work |
 | `synergy schedule` | the weights used to balance work |
-| `synergy agent` | the shared pool of AI specialist agents every operator can use |
+| `synergy agent` | the shared pool of specialist agents every operator can use |
 | `synergy status` | read-only report: operators, tasks, claims, workers |
 | `synergy doctor` | check dependencies, configuration and the registry |
 | `synergy verify` | check the event log's hash chain and print its head hash |

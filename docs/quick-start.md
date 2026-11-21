@@ -1,6 +1,6 @@
 # Quick start: two coordinating operators in five minutes
 
-You need a Linux machine with Python 3.11 or later, git, tmux and Anthropic's Claude command-line tool installed and signed in (see the manual's Claude setup chapter if not).
+You need a Linux machine with Python 3.11 or later, git, tmux and Claude Code (Anthropic's command-line tool) installed and signed in (see the manual's Claude setup chapter if not).
 
 1. Get the code and install it. The installer checks your system, creates private folders, installs the `synergy` command, sets up OPS1 and OPS2 with their tokens, and creates a detached tmux session named SYNERGY on its own tmux socket (named `synergy`; change `socket` under `[tmux]` in the configuration if you already use that name) (it does not touch your other tmux sessions; add `--no-tmux` to skip it). If you were given a folder instead of a link, copy it and skip the clone. It never starts Claude and never touches your Claude settings.
 

@@ -2,13 +2,13 @@
 # Git pre-commit hook (enforcement).
 # - Emoji are banned in every staged text file EXCEPT CI workflow files, where
 #   they are allowed in job/step names.
-# - AI-tell phrases are banned too, EXCEPT in files whose purpose is to document
-#   the rule (CLAUDE.md, the governance hooks, the pattern list), which
+# - Blocked phrases are rejected too, EXCEPT in files whose purpose is to document
+#   the rule (the check scripts and the term list), which
 #   legitimately contain those phrases as examples.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=/dev/null
-source "$ROOT/.claude/hooks/lib.sh"
+source "$ROOT/.github/scripts/lib.sh"
 
 is_binary() {
   case "$1" in
@@ -17,14 +17,13 @@ is_binary() {
   esac
 }
 
-# Paths exempt from the AI-tell TEXT scan (still subject to the emoji scan).
-tells_exempt() {
+# Paths exempt from the blocked-phrase text scan (still subject to the emoji scan).
+text_exempt() {
   case "$1" in
-    CLAUDE.md|*/CLAUDE.md) return 0 ;;
-    .claude/*|*/.claude/*) return 0 ;;
+    .github/scripts/*|*/.github/scripts/*) return 0 ;;
     governance/*|*/governance/*) return 0 ;;
     .github/workflows/*|*workflows/*.yml|*workflows/*.yaml) return 0 ;;
-    *forbidden-text.txt) return 0 ;;
+    *text-hygiene-terms.txt|*docs-allowed-terms.txt) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -53,9 +52,9 @@ while IFS= read -r f; do
     if [ -n "$emoji" ]; then echo "pre-commit: emoji not allowed in $f:" >&2; echo "$emoji" >&2; fail=1; fi
   fi
 
-  if ! tells_exempt "$f"; then
-    tells="$(gov_find_file_tells "$f")"
-    if [ -n "$tells" ]; then echo "pre-commit: AI-tell not allowed in $f:" >&2; echo "$tells" >&2; fail=1; fi
+  if ! text_exempt "$f"; then
+    issues="$(gov_find_file_issues "$f")"
+    if [ -n "$issues" ]; then echo "pre-commit: blocked phrase not allowed in $f:" >&2; echo "$issues" >&2; fail=1; fi
   fi
 done < <(git diff --cached --name-only --diff-filter=ACM)
 
