@@ -18,6 +18,7 @@ launcher set `SYNERGY_OPERATOR`.
 | `synergy inbox` | your durable notifications: new requests, assignments, results, messages |
 | `synergy message` | send a durable message to one operator or to all |
 | `synergy hook` | switch the optional Stop hook helper on or off (it never stops or deletes any session) |
+| `synergy watchdog` | read-only: operators that are offline while work waits for them (exit 3 if any) |
 | `synergy team` | approved team membership, scopes and holds |
 | `synergy dispatch` | automatic delegation of requests and tasks to eligible operators |
 | `synergy usage` | weekly Claude usage per account, used to balance new work |
@@ -50,10 +51,7 @@ synergy init [-h] [--rules-file RULES_FILE] [--no-require-tokens]
 ### synergy onboard
 
 ```
-synergy onboard [-h] [--status] [--role ROLE]
-                       [--approval-ref APPROVAL_REF] [--scopes SCOPES]
-                       [--admin]
-                       id
+synergy onboard [-h] [--status] [--role ROLE] [--approval-ref APPROVAL_REF] [--scopes SCOPES] [--admin] id
 ```
 
 | Argument | What it does |
@@ -74,8 +72,7 @@ synergy review [-h] {prepare} ...
 ### synergy review prepare
 
 ```
-synergy review prepare [-h] [--repo REPO] [--ref REF] [--model MODEL]
-                              name
+synergy review prepare [-h] [--repo REPO] [--ref REF] [--model MODEL] name
 ```
 
 | Argument | What it does |
@@ -88,16 +85,13 @@ synergy review prepare [-h] [--repo REPO] [--ref REF] [--model MODEL]
 ### synergy request
 
 ```
-synergy request [-h]
-                       {add,list,status,plan,route,take,finish,done,suggest,handoff,adopt} ...
+synergy request [-h] {add,list,status,plan,advise,route,take,finish,done,suggest,handoff,adopt} ...
 ```
 
 ### synergy request add
 
 ```
-synergy request add [-h] [--auto] [--no-auto] [--project PROJECT]
-                           [--needs NEEDS]
-                           text
+synergy request add [-h] [--auto] [--no-auto] [--project PROJECT] [--needs NEEDS] text
 ```
 
 | Argument | What it does |
@@ -134,6 +128,17 @@ synergy request plan [-h] --step STEP id
 |---|---|
 | `id` |  |
 | `--step` |  |
+
+### synergy request advise
+
+```
+synergy request advise [-h] [--project PROJECT] text
+```
+
+| Argument | What it does |
+|---|---|
+| `text` |  |
+| `--project` |  |
 
 ### synergy request route
 
@@ -212,7 +217,7 @@ synergy request adopt [-h] id
 ### synergy inbox
 
 ```
-synergy inbox [-h] {list,read,hook,wait} ...
+synergy inbox [-h] {list,read,session-start,hook,wait} ...
 ```
 
 ### synergy inbox list
@@ -235,6 +240,12 @@ synergy inbox read [-h] ids [ids ...]
 |---|---|
 | `ids` |  |
 
+### synergy inbox session-start
+
+```
+synergy inbox session-start [-h]
+```
+
 ### synergy inbox hook
 
 ```
@@ -249,7 +260,7 @@ synergy inbox wait [-h] [--timeout TIMEOUT]
 
 | Argument | What it does |
 |---|---|
-| `--timeout` |  |
+| `--timeout` | seconds before giving up; 0 (default) waits until work arrives, with no idle wake-ups |
 
 ### synergy message
 
@@ -282,7 +293,7 @@ synergy message all [-h] text
 ### synergy hook
 
 ```
-synergy hook [-h] {status,on,off} ...
+synergy hook [-h] {status,on,off,keepalive} ...
 ```
 
 ### synergy hook status
@@ -303,11 +314,30 @@ synergy hook on [-h]
 synergy hook off [-h]
 ```
 
+### synergy hook keepalive
+
+```
+synergy hook keepalive [-h] {on,off}
+```
+
+| Argument | What it does |
+|---|---|
+| `state` |  |
+
+### synergy watchdog
+
+```
+synergy watchdog [-h] [--minutes MINUTES]
+```
+
+| Argument | What it does |
+|---|---|
+| `--minutes` |  |
+
 ### synergy team
 
 ```
-synergy team [-h]
-                    {show,me,approve,suspend,resume,revoke,reauthorize,hold,release} ...
+synergy team [-h] {show,me,approve,suspend,resume,revoke,reauthorize,hold,release} ...
 ```
 
 ### synergy team show
@@ -325,9 +355,7 @@ synergy team me [-h]
 ### synergy team approve
 
 ```
-synergy team approve [-h] --approval-ref APPROVAL_REF [--scopes SCOPES]
-                            [--no-assign] [--admin]
-                            id
+synergy team approve [-h] --approval-ref APPROVAL_REF [--scopes SCOPES] [--no-assign] [--admin] id
 ```
 
 | Argument | What it does |
@@ -373,9 +401,7 @@ synergy team revoke [-h] --reason REASON id
 ### synergy team reauthorize
 
 ```
-synergy team reauthorize [-h] --approval-ref APPROVAL_REF
-                                [--scopes SCOPES]
-                                id
+synergy team reauthorize [-h] --approval-ref APPROVAL_REF [--scopes SCOPES] id
 ```
 
 | Argument | What it does |
@@ -455,9 +481,7 @@ synergy usage [-h] {set,ingest,show} ...
 ### synergy usage set
 
 ```
-synergy usage set [-h] --percent PERCENT [--resets RESETS]
-                         [--reserve RESERVE]
-                         account
+synergy usage set [-h] --percent PERCENT [--resets RESETS] [--reserve RESERVE] account
 ```
 
 | Argument | What it does |
@@ -470,8 +494,7 @@ synergy usage set [-h] --percent PERCENT [--resets RESETS]
 ### synergy usage ingest
 
 ```
-synergy usage ingest [-h] --history HISTORY --reset-epoch RESET_EPOCH
-                            account
+synergy usage ingest [-h] --history HISTORY --reset-epoch RESET_EPOCH account
 ```
 
 | Argument | What it does |
@@ -512,17 +535,13 @@ synergy schedule set [-h] name value
 ### synergy agent
 
 ```
-synergy agent [-h]
-                     {register,list,discover,request,next,done,fail,result,cancel,handoff,requeue} ...
+synergy agent [-h] {register,list,discover,request,next,done,fail,result,cancel,handoff,requeue} ...
 ```
 
 ### synergy agent register
 
 ```
-synergy agent register [-h] [--role ROLE] [--skills SKILLS]
-                              [--model MODEL] [--window WINDOW]
-                              [--approval-ref APPROVAL_REF]
-                              id
+synergy agent register [-h] [--role ROLE] [--skills SKILLS] [--model MODEL] [--window WINDOW] [--approval-ref APPROVAL_REF] id
 ```
 
 | Argument | What it does |
@@ -553,10 +572,7 @@ synergy agent discover [-h] [--register]
 ### synergy agent request
 
 ```
-synergy agent request [-h] [--needs NEEDS] [--agent AGENT]
-                             [--priority {1,2,3}] [--model MODEL]
-                             [--request REQUEST]
-                             text
+synergy agent request [-h] [--needs NEEDS] [--agent AGENT] [--priority {1,2,3}] [--model MODEL] [--request REQUEST] text
 ```
 
 | Argument | What it does |
@@ -692,17 +708,13 @@ synergy stale [-h] [--minutes MINUTES]
 ### synergy operator
 
 ```
-synergy operator [-h]
-                        {register,ack,heartbeat,list,session,profile,token} ...
+synergy operator [-h] {register,ack,heartbeat,list,session,profile,token} ...
 ```
 
 ### synergy operator register
 
 ```
-synergy operator register [-h] [--role ROLE]
-                                 [--environment ENVIRONMENT]
-                                 [--account ACCOUNT]
-                                 id
+synergy operator register [-h] [--role ROLE] [--environment ENVIRONMENT] [--account ACCOUNT] id
 ```
 
 | Argument | What it does |
@@ -752,9 +764,7 @@ synergy operator session [-h] --name NAME
 ### synergy operator profile
 
 ```
-synergy operator profile [-h] [--skills SKILLS] [--model MODEL]
-                                [--max-tasks MAX_TASKS]
-                                [--availability {AVAILABLE,BUSY,OUT_OF_USAGE}]
+synergy operator profile [-h] [--skills SKILLS] [--model MODEL] [--max-tasks MAX_TASKS] [--availability {AVAILABLE,BUSY,OUT_OF_USAGE}]
 ```
 
 | Argument | What it does |
@@ -801,17 +811,13 @@ synergy operator token reset [-h] --by BY --decision DECISION id
 ### synergy task
 
 ```
-synergy task [-h]
-                    {create,start,fail,claim,assign,release,status,reassign,list} ...
+synergy task [-h] {create,start,fail,claim,assign,release,status,reassign,list} ...
 ```
 
 ### synergy task create
 
 ```
-synergy task create [-h] --actor ACTOR [--dir DIR] [--branch BRANCH]
-                           [--deliverables DELIVERABLES]
-                           [--depends-on [DEPENDS_ON ...]] [--request REQUEST]
-                           id description
+synergy task create [-h] --actor ACTOR [--dir DIR] [--branch BRANCH] [--deliverables DELIVERABLES] [--depends-on [DEPENDS_ON ...]] [--request REQUEST] id description
 ```
 
 | Argument | What it does |
@@ -883,8 +889,7 @@ synergy task release [-h] id operator
 ### synergy task status
 
 ```
-synergy task status [-h] [--evidence EVIDENCE]
-                           id [OPERATOR] STATUS [[OPERATOR] STATUS ...]
+synergy task status [-h] [--evidence EVIDENCE] id [OPERATOR] STATUS [[OPERATOR] STATUS ...]
 ```
 
 | Argument | What it does |
@@ -921,8 +926,7 @@ synergy file [-h] {claim,release,list} ...
 ### synergy file claim
 
 ```
-synergy file claim [-h] [--task TASK] [--kind {file,worktree}]
-                          path operator
+synergy file claim [-h] [--task TASK] [--kind {file,worktree}] path operator
 ```
 
 | Argument | What it does |
@@ -958,9 +962,7 @@ synergy worker [-h] {register,state,list,start} ...
 ### synergy worker register
 
 ```
-synergy worker register [-h] [--task TASK] [--window WINDOW]
-                               [--dir DIR]
-                               id operator
+synergy worker register [-h] [--task TASK] [--window WINDOW] [--dir DIR] id operator
 ```
 
 | Argument | What it does |
@@ -993,8 +995,7 @@ synergy worker list [-h]
 ### synergy worker start
 
 ```
-synergy worker start [-h] [--task TASK] [--dir DIR] [--allow-bypass]
-                            id operator
+synergy worker start [-h] [--task TASK] [--dir DIR] [--allow-bypass] id operator
 ```
 
 | Argument | What it does |

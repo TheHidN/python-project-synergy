@@ -1,5 +1,3 @@
-import contextlib
-import io
 import os
 import pathlib
 import subprocess
@@ -11,8 +9,6 @@ import unittest
 
 import clean_env  # noqa: F401
 from helpers import RegistryCase
-
-from project_synergy import cli
 from project_synergy import errors as E
 from project_synergy import registry as R
 

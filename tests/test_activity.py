@@ -1,14 +1,13 @@
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
 from helpers import RegistryCase
-
 from project_synergy import registry as R
 
 
 def ago(**kw: float) -> str:
-    return (datetime.now(timezone.utc) - timedelta(**kw)).isoformat(timespec="seconds")
+    return (datetime.now(UTC) - timedelta(**kw)).isoformat(timespec="seconds")
 
 
 class TestOperatorActivity(RegistryCase):

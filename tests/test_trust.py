@@ -5,11 +5,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
 
 import clean_env  # noqa: F401
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 

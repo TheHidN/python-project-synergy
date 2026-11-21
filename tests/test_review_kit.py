@@ -158,7 +158,7 @@ class TestKitFilesAreSafe(unittest.TestCase):
     def test_no_destructive_commands_or_network_in_the_kit(self) -> None:
         import re
         for script in KIT.glob("*.sh"):
-            code = "\n".join(l for l in script.read_text().splitlines() if not l.lstrip().startswith("#"))
+            code = "\n".join(ln for ln in script.read_text().splitlines() if not ln.lstrip().startswith("#"))
             for pat in (r"\brm\b", r"\bkill", r"\bcurl\b", r"\bwget\b", r"\bsudo\b", r"tmux", r"send-keys",
                         r"git (reset|clean)", r"--dangerously"):
                 self.assertIsNone(re.search(pat, code), f"{script.name}: {pat}")

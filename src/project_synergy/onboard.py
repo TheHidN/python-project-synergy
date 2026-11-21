@@ -6,7 +6,6 @@ import hashlib
 import os
 import shlex
 import sqlite3
-import sys
 
 from . import config as C
 from . import errors as E
@@ -33,8 +32,6 @@ def _clean(text: str, limit: int = 80) -> str:
 
 def check_prerequisites(conn: sqlite3.Connection, cfg: C.Config) -> list[str]:
     problems = []
-    if sys.version_info < (3, 11):
-        problems.append("Python 3.11 or later is required")
     if not R.get_setting(conn, "rules_hash"):
         problems.append("no rules hash is recorded yet (the owner runs `synergy rules set` first)")
     for path in cfg.onboarding_rules_files:
@@ -80,6 +77,11 @@ def build_packet(conn: sqlite3.Connection, cfg: C.Config, op: str, packet_path: 
               "members inside your scopes are authorized; do them without asking the owner again. The registry refuses out-of-scope "
               "and held-project work itself. Killing, closing, deleting, extra paid workers, protected settings and publishing "
               "still need the owner's specific approval.",
+              "- When the owner gives you an ordinary instruction, decide yourself whether to do it or delegate it: run "
+              "`synergy request advise \"<instruction>\"`; if it says DELEGATE, register it with `synergy request add` (Synergy "
+              "splits it and picks operators and specialists by availability, skills and weekly usage). You stay the owner's "
+              "contact and give one consolidated answer. Never delegate anything the owner has to decide, protected actions, "
+              "or work outside your scopes or in a project on hold.",
               "- Set what you are good at and whether you can work now: `synergy operator profile`.",
               "", "## How to act", f"- Run every `synergy` command that acts as you with SYNERGY_OPERATOR={op} set; "
               "your launcher does this. Your token is read for you from your own owner-only file; you never paste it.",

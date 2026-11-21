@@ -9,9 +9,8 @@ import subprocess
 import tempfile
 import unittest
 
-from helpers import sandbox_works
-
 import clean_env  # noqa: F401
+from helpers import sandbox_works
 from project_synergy import cli
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent

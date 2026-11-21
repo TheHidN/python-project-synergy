@@ -5,11 +5,10 @@ import sys
 import tempfile
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -17,7 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def iso(hours_ago: float = 0.0, days_ahead: float = 0.0) -> str:
-    moment = datetime.now(timezone.utc) - timedelta(hours=hours_ago) + timedelta(days=days_ahead)
+    moment = datetime.now(UTC) - timedelta(hours=hours_ago) + timedelta(days=days_ahead)
     return moment.isoformat(timespec="seconds")
 
 
@@ -73,9 +72,9 @@ class TestUsageTracking(BalanceCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "history.tsv")
             rows = ["captured_at\tsession_pct\tsession_resets_at\tweek_pct\tweek_resets_at",
-                    f"{int(datetime.now(timezone.utc).timestamp()) - 60}\t\t\t7\t111",
-                    f"{int(datetime.now(timezone.utc).timestamp()) - 30}\t\t\t9\t222",
-                    f"{int(datetime.now(timezone.utc).timestamp()) - 20}\t\t\t11\t111"]
+                    f"{int(datetime.now(UTC).timestamp()) - 60}\t\t\t7\t111",
+                    f"{int(datetime.now(UTC).timestamp()) - 30}\t\t\t9\t222",
+                    f"{int(datetime.now(UTC).timestamp()) - 20}\t\t\t11\t111"]
             open(path, "w").write("\n".join(rows) + "\n")
             got = R.ingest_usage(self.conn, path, "ACC1", reset_epoch=111, by="OPS1")
             self.assertEqual(got, 11.0)

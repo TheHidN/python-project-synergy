@@ -1,5 +1,4 @@
 import importlib.util
-import os
 import pathlib
 import re
 import shlex
@@ -97,7 +96,7 @@ class TestDocs(unittest.TestCase):
     def test_readme_follows_the_house_style(self) -> None:
         lines = (ROOT / "README.md").read_text().splitlines()
         self.assertTrue(lines[0].startswith("# ") and has_emoji(lines[0]))
-        self.assertTrue(any(l.startswith("> ") and has_emoji(l) for l in lines[:5]))
+        self.assertTrue(any(ln.startswith("> ") and has_emoji(ln) for ln in lines[:5]))
         for line in lines:
             if line.startswith("## "):
                 self.assertTrue(has_emoji(line), line)

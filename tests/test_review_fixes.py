@@ -7,7 +7,6 @@ import tempfile
 import unittest
 
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import cli
 from project_synergy import config as C
 from project_synergy import errors as E

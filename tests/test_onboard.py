@@ -11,7 +11,6 @@ from unittest import mock
 
 import clean_env  # noqa: F401
 from project_synergy import cli
-from project_synergy import errors as E
 from project_synergy import registry as R
 
 HASH = "c" * 64

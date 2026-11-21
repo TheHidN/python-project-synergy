@@ -1,13 +1,11 @@
 import os
 import sqlite3
 import tempfile
-import threading
 import time
 import unittest
 
 import clean_env  # noqa: F401
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -39,6 +37,8 @@ class TestMigrationNineGrantsAdminOnlyToApprovedActiveOperators(unittest.TestCas
                 c.execute("INSERT INTO operators(id, status, trust, registered_at, last_seen) VALUES (?,?,?,'t','t')", (name, status, trust))
             c.execute("ALTER TABLE operators DROP COLUMN admin")
             c.execute("ALTER TABLE jobs DROP COLUMN project")
+            c.execute("ALTER TABLE operators DROP COLUMN reminded_at")
+            c.execute("DROP TABLE keepalive_log")
             c.execute("DELETE FROM settings WHERE key='bootstrapped'")
             c.execute("UPDATE schema_version SET version=8")
             c.close()

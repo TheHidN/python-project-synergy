@@ -4,11 +4,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
-from helpers import RULES_HASH, RegistryCase
-
+from helpers import RegistryCase
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -16,7 +15,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def ago(minutes: float) -> str:
-    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
+    return (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
 
 
 class LifeCase(RegistryCase):

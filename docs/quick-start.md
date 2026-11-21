@@ -2,11 +2,11 @@
 
 You need a Linux machine with Python 3.11 or later, git, tmux and Anthropic's Claude command-line tool installed and signed in (see the manual's Claude setup chapter if not).
 
-1. Get the code and install it. The installer checks your system, creates private folders, installs the `synergy` command, sets up OPS1 and OPS2 with their tokens, and creates a detached tmux session named SYNERGY on its own tmux socket (it does not touch your other tmux sessions; add `--no-tmux` to skip it). If you were given a folder instead of a link, copy it and skip the clone. It never starts Claude and never touches your Claude settings.
+1. Get the code and install it. The installer checks your system, creates private folders, installs the `synergy` command, sets up OPS1 and OPS2 with their tokens, and creates a detached tmux session named SYNERGY on its own tmux socket (named `synergy`; change `socket` under `[tmux]` in the configuration if you already use that name) (it does not touch your other tmux sessions; add `--no-tmux` to skip it). If you were given a folder instead of a link, copy it and skip the clone. It never starts Claude and never touches your Claude settings.
 
 ```bash
 git clone https://github.com/TheHidN/python-project-synergy.git
-cd project-synergy
+cd python-project-synergy
 ./install.sh
 ```
 
@@ -54,4 +54,4 @@ SYNERGY_OPERATOR=OPS2 synergy request take REQ-0001
 SYNERGY_OPERATOR=OPS1 synergy request status REQ-0001
 ```
 
-(Add `--project NAME` to `request add` to scope a request to a project; the default is `general`. If `request take` prints already yours, automatic delegation had already given the request to OPS2, which is fine.) That is the whole idea: one registry, one owner per task, one request typed once. To add a third operator, run `synergy onboard OPS3` from an operator's session (for example `SYNERGY_OPERATOR=OPS1 synergy onboard OPS3`) and start its launcher. The manual explains tmux workspaces, workers, safety and troubleshooting.
+From step 5 on, every command an operator runs without a listener prints a one-line reminder to start `synergy inbox wait` as a background command; that listener is how an operator receives work while idle, and it costs no Claude tokens while it waits. Starting it silences the reminder. (Add `--project NAME` to `request add` to scope a request to a project; the default is `general`. If `request take` prints already yours, automatic delegation had already given the request to OPS2, which is fine.) That is the whole idea: one registry, one owner per task, one request typed once. To add a third operator, run `synergy onboard OPS3` from an operator's session (for example `SYNERGY_OPERATOR=OPS1 synergy onboard OPS3`) and start its launcher. The manual explains tmux workspaces, workers, safety and troubleshooting.

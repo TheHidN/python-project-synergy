@@ -7,11 +7,10 @@ import threading
 import time
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import clean_env  # noqa: F401
 from helpers import RegistryCase
-
 from project_synergy import agents as A
 from project_synergy import errors as E
 from project_synergy import registry as R
@@ -196,7 +195,7 @@ class TestCompletionAndControl(PoolCase):
         R.agent_next(self.conn, "SEC")
         with self.assertRaises(E.NotClaimable):
             R.requeue_job(self.conn, self.placed["id"], "OPS1", stale_minutes=60)
-        old = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(timespec="seconds")
+        old = (datetime.now(UTC) - timedelta(hours=3)).isoformat(timespec="seconds")
         self.conn.execute("UPDATE operators SET last_seen=?, listening_at='' WHERE id='SEC'", (old,))
         R.requeue_job(self.conn, self.placed["id"], "OPS1", stale_minutes=60)
         self.assertEqual(self.job(self.placed["id"])["status"], "QUEUED")

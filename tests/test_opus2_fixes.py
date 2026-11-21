@@ -1,13 +1,9 @@
 import os
-import pathlib
-import sqlite3
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
 
 import clean_env  # noqa: F401
 from helpers import RULES_HASH, RegistryCase
-
 from project_synergy import errors as E
 from project_synergy import registry as R
 
@@ -174,6 +170,7 @@ class TestHookCurrentOwnership(AdminCase):
     def test_the_hook_only_counts_assignments_the_operator_still_owns(self) -> None:
         self.member("A")
         self.member("C")
+        R.set_setting(self.conn, "hook_keepalive", "off")
         R.create_task(self.conn, "T-1", "x", actor="OPS1")
         R.assign_task(self.conn, "T-1", "A", by="OPS1")
         self.assertTrue(R.hook_decision(self.conn, "A"))

@@ -20,12 +20,13 @@ import sqlite3
 import stat
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from . import errors as E
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 TASK_STATUSES = ("OPEN", "CLAIMED", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED")
 WORKER_STATES = ("RUNNING", "WORKING", "IDLE", "WAITING", "BLOCKED", "FINISHED", "UNKNOWN")
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
@@ -146,12 +147,18 @@ _MIGRATIONS: dict[int, list[str]] = {
     ],
     10: [
         "ALTER TABLE jobs ADD COLUMN project TEXT NOT NULL DEFAULT 'general'",
+    ],
+    11: [
+        "ALTER TABLE operators ADD COLUMN reminded_at TEXT NOT NULL DEFAULT ''",
+        "CREATE TABLE keepalive_log(operator TEXT NOT NULL, at TEXT NOT NULL)",
+        "CREATE INDEX keepalive_log_op ON keepalive_log(operator, at)",
+        "INSERT OR IGNORE INTO settings SELECT 'hook_keepalive','off' WHERE EXISTS (SELECT 1 FROM operators)",
     ]
 }
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ts(moment: datetime | None = None) -> str:
@@ -659,7 +666,7 @@ def _owned(conn: sqlite3.Connection, tid: str, op: str) -> sqlite3.Row:
         raise E.NotFound(f"task {tid} does not exist")
     if row["owner"] != op:
         raise E.NotOwner(f"task {tid} is owned by {row['owner'] or 'nobody'}, not {op}")
-    return row
+    return cast(sqlite3.Row, row)
 
 
 def set_task_status(
@@ -914,7 +921,7 @@ def set_usage(conn: sqlite3.Connection, account: str, percent: float, resets_at:
             parsed = datetime.fromisoformat(resets_at)
         except ValueError:
             raise E.ValidationError("the reset time is an ISO date and time") from None
-        resets_at = _ts(parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc))
+        resets_at = _ts(parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC))
     with tx(conn):
         if by:
             _authn(conn, _op(by), token)
@@ -963,8 +970,8 @@ def ingest_usage(conn: sqlite3.Connection, path: str, account: str, reset_epoch:
     if found is None:
         raise E.NotFound(f"no figure for the week that resets at {reset_epoch}")
     try:
-        stamp = datetime.fromtimestamp(int(found[c_at]), timezone.utc)
-        reset = datetime.fromtimestamp(int(reset_epoch), timezone.utc)
+        stamp = datetime.fromtimestamp(int(found[c_at]), UTC)
+        reset = datetime.fromtimestamp(int(reset_epoch), UTC)
         percent = float(found[c_pct])
     except (ValueError, OverflowError, OSError):
         raise E.ValidationError("the usage history row has a value that is not a number or a time") from None
@@ -974,7 +981,7 @@ def ingest_usage(conn: sqlite3.Connection, path: str, account: str, reset_epoch:
 
 def _aware(text: str) -> datetime:
     parsed = datetime.fromisoformat(text)
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 def get_usage(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str, dict[str, object]]:
@@ -983,7 +990,7 @@ def get_usage(conn: sqlite3.Connection, now: datetime | None = None) -> dict[str
     stale_after = timedelta(hours=get_tunables(conn)["stale_hours"])
     pools: dict[str, dict[str, object]] = {}
     for o in conn.execute("SELECT id, account FROM operators ORDER BY id"):
-        pools.setdefault(_account_of(o), {"operators": []})["operators"].append(o["id"])  # type: ignore[union-attr]
+        cast(list[str], pools.setdefault(_account_of(o), {"operators": []})["operators"]).append(o["id"])
     for row in conn.execute("SELECT * FROM accounts"):
         pools.setdefault(row["id"], {"operators": []})
     for name, pool in pools.items():
@@ -1016,7 +1023,7 @@ def _candidates(conn: sqlite3.Connection, req: sqlite3.Row | dict[str, object], 
                 include_origin: bool = False) -> list[dict[str, object]]:
     w = get_tunables(conn)
     usage = get_usage(conn, moment)
-    needs = {x for x in req["needs"].split(",") if x}
+    needs = {x for x in str(req["needs"]).split(",") if x}
     quiet_cutoff = _ts(moment - timedelta(minutes=w["quiet_minutes"]))
     heard_cutoff = _ts(moment - timedelta(seconds=90))
     ranking = []
@@ -1028,7 +1035,7 @@ def _candidates(conn: sqlite3.Connection, req: sqlite3.Row | dict[str, object], 
             continue
         if _approval_required(conn) and o["trust"] != "APPROVED":
             continue
-        if not _scope_ok(o["scopes"], str(req["project"]) if "project" in req.keys() else "general"):  # type: ignore[union-attr]
+        if not _scope_ok(o["scopes"], str(req["project"]) if "project" in req.keys() else "general"):
             continue
         listening = bool(o["listening_at"]) and o["listening_at"] >= heard_cutoff
         if o["last_seen"] < quiet_cutoff and not listening:
@@ -1051,11 +1058,11 @@ def _candidates(conn: sqlite3.Connection, req: sqlite3.Row | dict[str, object], 
                  + w["usage"] * (100 - pct) / 10 - w["load"] * open_tasks - (w["limit"] if near else 0.0)
                  - w["fairness"] * o["routed"])
         shown = f"{pool['percent']}% ({pool['state']})" if pool["percent"] is not None else "unknown"
-        ranking.append({"id": o["id"], "score": round(score, 3),
+        ranking.append({"id": o["id"], "score": round(score, 3), "listening": listening,
                         "reason": f"skills: {','.join(match) or 'none matching'}; account {_account_of(o)} at {shown}"
                                   f"{'; NEAR ITS LIMIT' if near else ''}; {'listening' if listening else 'not listening'}; "
                                   f"{open_tasks} open of {o['max_tasks']}; model {o['model_pref']}"})
-    ranking.sort(key=lambda r: (-float(r["score"]), str(r["id"])))  # type: ignore[arg-type]
+    ranking.sort(key=lambda r: (-float(r["score"]), str(r["id"])))
     return ranking
 
 
@@ -1143,7 +1150,7 @@ def plan_request(conn: sqlite3.Connection, request_id: str, by: str, steps: list
             title = str(step.get("title", "")).strip()
             if not title:
                 raise E.ValidationError(f"step {n} needs a title")
-            deps = [int(d) for d in step.get("depends", []) or []]  # type: ignore[union-attr]
+            deps = [int(d) for d in cast(list[int], step.get("depends") or [])]
             if any(d < 1 or d >= n for d in deps):
                 raise E.ValidationError(f"step {n} can only depend on earlier steps")
             files = ",".join(f.strip() for f in str(step.get("files", "") or "").split(",") if f.strip())
@@ -1516,6 +1523,9 @@ def team_me(conn: sqlite3.Connection, op_id: str) -> str:
 
 HOOK_MAX_PER_ASSIGNMENT = 2
 HOOK_MAX_PER_HOUR = 6
+KEEPALIVE_MAX_PER_HOUR = 3
+KEEPALIVE_MAX_PER_DAY = 6
+REMIND_EVERY_MINUTES = 10
 
 
 def set_hook(conn: sqlite3.Connection, on: bool, by: str, token: str = "") -> None:
@@ -1545,7 +1555,7 @@ def hook_decision(conn: sqlite3.Connection, op_id: str, now: datetime | None = N
         o = conn.execute("SELECT * FROM operators WHERE id=?", (op,)).fetchone()
         if o is None or o["kind"] != "OPERATOR" or o["status"] != "ACTIVE" or not o["can_receive"]:
             return None
-        if _approval_required(conn) and o["trust"] != "APPROVED":
+        if wait_problem(conn, op):
             return None
         hour_ago = _ts(moment - timedelta(hours=1))
         used = conn.execute("SELECT COALESCE(sum(h.blocks),0) FROM hook_blocks h JOIN notifications n ON n.id=h.notification_id "
@@ -1562,13 +1572,160 @@ def hook_decision(conn: sqlite3.Connection, op_id: str, now: datetime | None = N
                 continue
             pending.append(n)
         if not pending:
-            return None
+            if get_setting(conn, "hook_keepalive", "on") == "off" or o["availability"] != "AVAILABLE":
+                return None
+            heard = _ts(moment - timedelta(seconds=90))
+            if o["listening_at"] and o["listening_at"] >= heard:
+                return None
+            recent = conn.execute("SELECT count(*) FROM keepalive_log WHERE operator=? AND at >= ?", (op, hour_ago)).fetchone()[0]
+            today = conn.execute("SELECT count(*) FROM keepalive_log WHERE operator=? AND at >= ?",
+                                 (op, _ts(moment - timedelta(days=1)))).fetchone()[0]
+            if recent >= KEEPALIVE_MAX_PER_HOUR or today >= KEEPALIVE_MAX_PER_DAY:
+                return None
+            conn.execute("INSERT INTO keepalive_log(operator, at) VALUES (?,?)", (op, _ts(moment)))
+            conn.execute("DELETE FROM keepalive_log WHERE at < ?", (_ts(moment - timedelta(days=2)),))
+            return (f"Synergy: {op} is not listening for assignments. Start `synergy inbox wait` as a BACKGROUND command now "
+                    "(it costs no tokens while it waits and ends only when work arrives), then finish. Reminder shown at most "
+                    f"{KEEPALIVE_MAX_PER_HOUR} times an hour; set yourself away with `synergy operator profile --availability BUSY`.")
         for n in pending:
             conn.execute("INSERT INTO hook_blocks(notification_id, blocks, last_at) VALUES (?,1,?) "
                          "ON CONFLICT(notification_id) DO UPDATE SET blocks=blocks+1, last_at=excluded.last_at", (n["id"], _ts(moment)))
         return (f"Synergy: {len(pending)} assignment(s) for {op} are waiting. Run `synergy inbox list`, do the work within "
                 "the request's scope, acknowledge with `synergy task start ID`, then re-arm `synergy inbox wait`. "
                 "This reminder is shown at most twice per assignment.")
+
+
+def set_hook_keepalive(conn: sqlite3.Connection, on: bool, by: str, token: str = "") -> None:
+    actor = _op(by)
+    with tx(conn):
+        _authn(conn, actor, token)
+        _require_operator(conn, actor)
+        _require_admin(conn, actor)
+        conn.execute("INSERT INTO settings VALUES ('hook_keepalive',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                     ("on" if on else "off",))
+        _log(conn, actor, "hook.keepalive", "hook", "on" if on else "off")
+
+
+def wait_problem(conn: sqlite3.Connection, op_id: str) -> str:
+    """Why an operator should stop waiting for work ('' when it is still a member in good standing)."""
+    row = conn.execute("SELECT status, trust FROM operators WHERE id=?", (_op(op_id),)).fetchone()
+    if row is None:
+        return "it is no longer registered"
+    if row["status"] != "ACTIVE":
+        return f"it is {row['status']}, not ACTIVE"
+    if row["trust"] == "REVOKED" or (_approval_required(conn) and row["trust"] != "APPROVED"):
+        return "its team membership is no longer approved"
+    return ""
+
+
+def has_unread(conn: sqlite3.Connection, op_id: str) -> bool:
+    return conn.execute("SELECT 1 FROM notifications WHERE operator=? AND read_at IS NULL LIMIT 1", (_op(op_id),)).fetchone() is not None
+
+
+def session_context(conn: sqlite3.Connection, op_id: str) -> str:
+    """What a started or resumed operator session is told so it can come back online by itself. Empty for anyone else."""
+    op = _op(op_id)
+    o = conn.execute("SELECT * FROM operators WHERE id=?", (op,)).fetchone()
+    if o is None or o["kind"] not in ("OPERATOR", "AGENT") or wait_problem(conn, op):
+        return ""
+    return (f"Project Synergy: this session acts as {op}. First run `synergy team me` to read what you are authorized to do, then "
+            "run `synergy inbox list`, then start `synergy inbox wait` as a background command so assignments reach you while you "
+            "are idle (it costs no tokens while it waits). Start it again every time it ends. When the owner gives you an "
+            "ordinary instruction, decide yourself whether to do it or delegate it: run `synergy request advise \"<instruction>\"` "
+            "and, if it says DELEGATE, `synergy request add` it, stay the owner's contact and give one consolidated answer. "
+            "Never do protected actions (killing, deleting, publishing, extra workers) without the owner's specific approval.")
+
+
+def reminder_due(conn: sqlite3.Connection, op_id: str, now: datetime | None = None) -> bool:
+    """True when an active operator is running commands without a listener, at most once every few minutes. It reads
+    first and takes the write lock only when a reminder is really due."""
+    moment = now or _now()
+    op = _op(op_id)
+
+    def due(o: sqlite3.Row | None) -> bool:
+        if o is None or o["status"] != "ACTIVE" or o["availability"] != "AVAILABLE":
+            return False
+        if o["listening_at"] and o["listening_at"] >= _ts(moment - timedelta(seconds=90)):
+            return False
+        return not (o["reminded_at"] and o["reminded_at"] >= _ts(moment - timedelta(minutes=REMIND_EVERY_MINUTES)))
+
+    query = "SELECT status, availability, listening_at, reminded_at FROM operators WHERE id=?"
+    if not due(conn.execute(query, (op,)).fetchone()):
+        return False
+    with tx(conn):
+        if not due(conn.execute(query, (op,)).fetchone()):
+            return False
+        conn.execute("UPDATE operators SET reminded_at=? WHERE id=?", (_ts(moment), op))
+        return True
+
+
+def clear_listening(conn: sqlite3.Connection, op_id: str) -> None:
+    """Drop this operator's listening mark. It needs no authentication because it can only make the operator look less
+    available, and a suspended or revoked operator must still be able to clear it."""
+    with tx(conn):
+        conn.execute("UPDATE operators SET listening_at='' WHERE id=?", (_op(op_id),))
+
+
+def availability_report(conn: sqlite3.Connection, minutes: int = 10, now: datetime | None = None) -> list[dict[str, object]]:
+    """Active operators and agents that are not listening while they have unread work older than `minutes`."""
+    moment = now or _now()
+    old = _ts(moment - timedelta(minutes=minutes))
+    heard = _ts(moment - timedelta(seconds=90))
+    out = []
+    for o in conn.execute("SELECT id, kind, session_name, listening_at FROM operators WHERE status='ACTIVE' ORDER BY id"):
+        if o["listening_at"] and o["listening_at"] >= heard:
+            continue
+        row = conn.execute("SELECT count(*), min(created_at) FROM notifications WHERE operator=? AND read_at IS NULL AND created_at <= ?",
+                           (o["id"], old)).fetchone()
+        if row[0]:
+            out.append({"operator": o["id"], "kind": o["kind"], "unread": row[0], "oldest": row[1], "session": o["session_name"]})
+    return out
+
+
+_SKILL_WORDS = (("security", ("security", "secure", "vulnerab", "threat", "audit")),
+                ("docs", ("document", "docs", "readme", "guide", "write up", "notes", "manual")),
+                ("testing", ("test", "qa", "verify", "validate")),
+                ("review", ("review", "check", "inspect")),
+                ("code", ("implement", "refactor", "code", "bug", "fix ", "develop")),
+                ("architecture", ("architect", "design", "plan the")))
+
+
+def delegate_advice(conn: sqlite3.Connection, op_id: str, text: str, project: str = "general",
+                    now: datetime | None = None) -> dict[str, object]:
+    """Advice for an operator that was given an ordinary instruction: do it locally or delegate it. Deterministic and
+    local, no model tokens, and it changes nothing. The operator decides and stays the owner's contact either way."""
+    op = _op(op_id)
+    moment = now or _now()
+    project = _tags(project) or "general"
+    parts = split_text(text)
+    lowered = text.lower()
+    needs = ",".join(skill for skill, words in _SKILL_WORDS if any(w in lowered for w in words))
+    base: dict[str, object] = {"decision": "LOCAL", "parts": len(parts), "needs": needs, "candidates": [],
+                               "model": choose_model(needs, text), "project": project}
+    if _held(conn, project):
+        return {**base, "reason": f"the project {project!r} is on hold: do not delegate new work in it"}
+    try:
+        _check_member(conn, op, project, receiving=False)
+    except E.NotActive as exc:
+        return {**base, "reason": str(exc).replace(f"{op} is ", "you are ", 1)}
+    spec: dict[str, object] = {"origin": op, "needs": needs, "project": project}
+    ranking = [r for r in _candidates(conn, spec, moment, strict=True) if r["listening"]]
+    if not ranking:
+        return {**base, "reason": "no listening, approved colleague is available right now: do it yourself or wait"}
+    top = [{"id": r["id"], "score": r["score"], "reason": r["reason"]} for r in ranking[:3]]
+    skilled = [r for r in ranking if needs and any(s in str(r["reason"]).split("skills: ")[1].split(";")[0].split(",")
+                                                   for s in needs.split(","))]
+    independent = any(w in lowered for w in ("independent", "someone else", "another operator", "cross-check", "second opinion"))
+    if independent:
+        return {**base, "decision": "DELEGATE", "candidates": top,
+                "reason": "an independent check must be done by someone other than you, and a listening colleague is available"}
+    if len(parts) >= 2:
+        return {**base, "decision": "DELEGATE", "candidates": top,
+                "reason": f"{len(parts)} separate parts can be done in parallel by listening colleagues"}
+    if skilled:
+        return {**base, "decision": "DELEGATE", "candidates": [{"id": r["id"], "score": r["score"], "reason": r["reason"]} for r in skilled[:3]],
+                "reason": "a listening colleague has the skill this needs"}
+    return {**base, "candidates": top, "reason": "a simple instruction with no skill another operator is better placed to cover: do it yourself"}
 
 
 def send_message(conn: sqlite3.Connection, from_op: str, to: str | None, text: str, subject: str = "",
@@ -1648,7 +1805,7 @@ def get_request(conn: sqlite3.Connection, request_id: str) -> sqlite3.Row:
     row = conn.execute("SELECT * FROM requests WHERE id=?", (request_id.strip().upper(),)).fetchone()
     if row is None:
         raise E.NotFound(f"request {request_id} does not exist")
-    return row
+    return cast(sqlite3.Row, row)
 
 
 def list_requests(conn: sqlite3.Connection) -> list[sqlite3.Row]:
@@ -1905,7 +2062,7 @@ def get_job(conn: sqlite3.Connection, job_id: str) -> sqlite3.Row:
     row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id.strip().upper(),)).fetchone()
     if row is None:
         raise E.NotFound(f"job {job_id} does not exist")
-    return row
+    return cast(sqlite3.Row, row)
 
 
 def list_jobs(conn: sqlite3.Connection, agent: str = "", requester: str = "", status: str = "") -> list[sqlite3.Row]:
@@ -1932,7 +2089,7 @@ def agent_next(conn: sqlite3.Connection, agent_id: str, token: str = "") -> sqli
         if job["status"] == "RESERVED":
             conn.execute("UPDATE jobs SET status='RUNNING', started_at=? WHERE id=?", (_ts(), job["id"]))
             _log(conn, agent, "job.start", job["id"], "")
-        return conn.execute("SELECT * FROM jobs WHERE id=?", (job["id"],)).fetchone()
+        return cast("sqlite3.Row | None", conn.execute("SELECT * FROM jobs WHERE id=?", (job["id"],)).fetchone())
 
 
 def _end_job(conn: sqlite3.Connection, job_id: str, agent: str, status: str, text: str, kind: str) -> None:
@@ -2211,7 +2368,7 @@ def status_report(conn: sqlite3.Connection, now: datetime | None = None) -> str:
     """Read-only text report. Writes nothing, including no event."""
     moment = now or _now()
     if get_setting(conn, "require_tokens") == "1":
-        lines = ["tokens: required"]
+        lines = ["tokens: required (each operator has its own owner-only token file; nothing to configure)"]
     else:
         lines = ["tokens: NOT required (run `synergy operator token backfill` to require them)"]
     lines.append("OPERATORS (connection, work state, open tasks, last activity)")

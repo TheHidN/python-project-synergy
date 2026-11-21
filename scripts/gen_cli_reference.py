@@ -30,7 +30,7 @@ def _walk(parser: argparse.ArgumentParser, path: list[str], out: list[str]) -> N
             out.append(description)
             out.append("")
         out.append("```")
-        out.append(parser.format_usage().replace("usage: ", "").rstrip())
+        out.append(" ".join(parser.format_usage().replace("usage: ", "").split()))
         out.append("```")
         out.append("")
         rows = []

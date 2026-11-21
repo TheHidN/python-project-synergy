@@ -3,25 +3,26 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable
-from datetime import datetime, timezone
 import fcntl
 import hashlib
 import os
 import shutil
+import signal
 import sqlite3
 import subprocess
-import time
 import sys
-from collections.abc import Sequence
+import time
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
+from typing import cast
 
 from . import __version__
 from . import agents as AG
 from . import config as C
-from . import onboard as O
-from . import review as V
 from . import errors as E
+from . import onboard as O
 from . import registry as R
+from . import review as V
 from . import tmux as T
 from .tokens import token_file as _token_file
 from .tokens import write_token as _write_token
@@ -66,6 +67,9 @@ def _parser() -> argparse.ArgumentParser:
     rp_ = rq.add_parser("plan", help="record a plan for a request you asked: each --step is 'title|needs=..|files=..|after=1,2|criteria=..'")
     rp_.add_argument("id")
     rp_.add_argument("--step", action="append", required=True)
+    rv_ = rq.add_parser("advise", help="advice for an ordinary instruction: DELEGATE or LOCAL, and who would get it (changes nothing)")
+    rv_.add_argument("text")
+    rv_.add_argument("--project", default="general")
     rr_ = rq.add_parser("route", help="hand an unowned request to the best eligible operator (explains why)")
     rr_.add_argument("id")
     rr_.add_argument("--model", default="any")
@@ -88,9 +92,10 @@ def _parser() -> argparse.ArgumentParser:
     il.add_argument("--all", action="store_true")
     ir = ib.add_parser("read", help="mark notifications read: ids, or all")
     ir.add_argument("ids", nargs="+")
+    ib.add_parser("session-start", help="for a session-start hook: tells an operator session how to come back online (prints JSON or nothing)")
     ib.add_parser("hook", help="for a Stop hook: keep a session working while assignments are unread (prints JSON or nothing)")
     iw = ib.add_parser("wait", help="wait until something new arrives, print it and exit (run in the background; costs no tokens while waiting)")
-    iw.add_argument("--timeout", type=int, default=3600)
+    iw.add_argument("--timeout", type=int, default=0, help="seconds before giving up; 0 (default) waits until work arrives, with no idle wake-ups")
     ms = sub.add_parser("message", help="send a durable message to one operator or to all").add_subparsers(dest="action")
     m1 = ms.add_parser("send", help="message one operator")
     m1.add_argument("to")
@@ -101,6 +106,10 @@ def _parser() -> argparse.ArgumentParser:
     hk.add_parser("status", help="is the Stop hook helper on or off, and the limits it works within")
     hk.add_parser("on", help="allow the Stop hook helper to resume a session for pending assignments")
     hk.add_parser("off", help="make the Stop hook helper do nothing")
+    hka = hk.add_parser("keepalive", help="switch the reminder to start a listener before a session stops on or off (administrator)")
+    hka.add_argument("state", choices=("on", "off"))
+    wd = sub.add_parser("watchdog", help="read-only: operators that are offline while work waits for them (exit 3 if any)")
+    wd.add_argument("--minutes", type=int, default=10)
     tm = sub.add_parser("team", help="approved team membership, scopes and holds").add_subparsers(dest="action")
     tm.add_parser("show", help="who is on the team, with scopes, permissions and the owner approval on record")
     tm.add_parser("me", help="your own authorization, in plain words (read it again after a restart)")
@@ -369,27 +378,52 @@ def _show(rows: list[sqlite3.Row]) -> None:
 
 
 def _inbox_wait(conn: sqlite3.Connection, op: str, token: str, timeout: int) -> int:
-    deadline = time.time() + max(1, timeout)
+    """Wait for work without using any model tokens. Ends when work arrives (0), when the timeout passes (5), when the
+    operator is no longer a member in good standing (6), or when it is told to stop (0). The default has no timeout, so a
+    quiet session is never woken for nothing."""
+
+    problem = R.wait_problem(conn, op)
+    if problem:
+        raise E.NotActive(f"{op} cannot wait for work: {problem}")
+    stop = {"now": False}
+
+    def _stop(_signum: int, _frame: object) -> None:
+        stop["now"] = True
+
+    previous = (signal.signal(signal.SIGTERM, _stop), signal.signal(signal.SIGINT, _stop))
+    poll = max(0.05, float(os.environ.get("SYNERGY_WAIT_POLL", "2.0")))
+    deadline = time.time() + timeout if timeout > 0 else None
     last_listen = 0.0
     _tick(conn, op, token)
-    while True:
-        now = time.time()
-        if now - last_listen >= 20:
-            R.set_listening(conn, op, token)
-            last_listen = now
-        rows = R.list_notifications(conn, op)
-        if rows:
-            time.sleep(1.5)
-            rows = R.list_notifications(conn, op)
-            _show(rows)
-            R.mark_read(conn, op, [r["id"] for r in rows], token)
-            R.set_listening(conn, op, token, on=False)
-            return EXIT_OK
-        if now >= deadline:
-            print("nothing new")
-            R.set_listening(conn, op, token, on=False)
-            return 5
-        time.sleep(1.0)
+    try:
+        while not stop["now"]:
+            now = time.time()
+            problem = R.wait_problem(conn, op)
+            if problem:
+                print(f"{op} is no longer a member in good standing ({problem}); stopped waiting")
+                return 6
+            if now - last_listen >= 30:
+                R.set_listening(conn, op, token)
+                last_listen = now
+            if R.has_unread(conn, op):
+                time.sleep(min(1.5, poll * 4))
+                rows = R.list_notifications(conn, op)
+                _show(rows)
+                R.mark_read(conn, op, [r["id"] for r in rows], token)
+                return EXIT_OK
+            if deadline is not None and now >= deadline:
+                print("nothing new")
+                return 5
+            time.sleep(poll)
+        print("stopped by a signal; start the wait again to stay available")
+        return 7
+    finally:
+        signal.signal(signal.SIGTERM, previous[0])
+        signal.signal(signal.SIGINT, previous[1])
+        try:
+            R.clear_listening(conn, op)
+        except sqlite3.Error:
+            pass
 
 
 def _owner_actor(conn: sqlite3.Connection, db: str) -> str:
@@ -616,6 +650,12 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
             print("plan recorded: " + ", ".join(ids))
             for m in _tick(conn, op, tok):
                 print(m["explanation"])
+        elif act == "advise":
+            advice = R.delegate_advice(conn, op, args.text, project=args.project)
+            print(f"{advice['decision']}: {advice['reason']}")
+            print(f"parts {advice['parts']}; needs {advice['needs'] or '-'}; suggested model {advice['model']}")
+            for c in cast(list[dict[str, object]], advice["candidates"]):
+                print(f"  {c['id']:<10} score {c['score']}  {c['reason']}")
         elif act == "route":
             chosen = R.route_request(conn, args.id, op, model=args.model, token=tok)
             print(chosen["explanation"] if chosen else "no eligible operator right now; any operator can take it")
@@ -648,11 +688,23 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
             print(f"{args.id.upper()} adopted by {op}")
         else:
             return EXIT_USAGE
+    elif g == "watchdog":
+        wd_rows = R.availability_report(conn, minutes=args.minutes)
+        for r in wd_rows:
+            print(f"OFFLINE WITH WORK {r['operator']} ({str(r['kind']).lower()}): {r['unread']} unread since {r['oldest']}"
+                  f"{'; session ' + str(r['session']) if r['session'] else ''}")
+        if not wd_rows:
+            print("nobody is offline with work waiting")
+        return EXIT_REFUSED if wd_rows else EXIT_OK
     elif g == "hook":
         if act == "status":
             print(f"stop hook helper: {'ON' if R.hook_enabled(conn) else 'OFF'}; at most {R.HOOK_MAX_PER_ASSIGNMENT} reminders per assignment "
                   f"and {R.HOOK_MAX_PER_HOUR} per operator per hour; also silent when delegation is paused, when "
                   "SYNERGY_HOOK_DISABLED=1, or when the file hook.disabled exists in the config folder")
+        elif act == "keepalive":
+            me, tok = _me(conn, db)
+            R.set_hook_keepalive(conn, args.state == "on", me, token=tok)
+            print(f"keepalive reminder {args.state.upper()}")
         elif act in ("on", "off"):
             me, tok = _me(conn, db)
             R.set_hook(conn, act == "on", me, token=tok)
@@ -696,10 +748,10 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
             R.set_dispatch(conn, act == "resume", op, token=tok)
             print("automatic delegation " + ("resumed" if act == "resume" else "PAUSED; nothing else was stopped"))
         elif act == "nudge":
-            rows = R.pending_nudges(conn, min_age_seconds=args.min_age)
-            for n in rows:
+            nudge_rows = R.pending_nudges(conn, min_age_seconds=args.min_age)
+            for n in nudge_rows:
                 print(f"NUDGE {n['operator']} (session {n['session'] or 'unknown'}): {n['unread']} unread since {n['oldest']}")
-            if not rows:
+            if not nudge_rows:
                 print("nobody needs a nudge")
         elif act == "run":
             op, tok = _me(conn, db)
@@ -718,9 +770,9 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
             if not rows:
                 print("(inbox empty)")
         elif act == "read":
-            ids = [n["id"] for n in R.list_notifications(conn, op)] if args.ids == ["all"] else [int(i) for i in args.ids]
-            R.mark_read(conn, op, ids, token=tok)
-            print(f"{len(ids)} marked read")
+            read_ids = [int(n["id"]) for n in R.list_notifications(conn, op)] if args.ids == ["all"] else [int(i) for i in args.ids]
+            R.mark_read(conn, op, read_ids, token=tok)
+            print(f"{len(read_ids)} marked read")
         elif act == "wait":
             return _inbox_wait(conn, op, tok, args.timeout)
         else:
@@ -748,7 +800,7 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
                 figure = "unknown" if pool["percent"] is None else f"{pool['percent']}% used, {pool['left']}% left"
                 print(f"{name:<14} {figure}; {pool['state']}; source {pool['source'] or '-'}; verified "
                       f"{pool['verified_at'] or '-'}; resets {pool['resets_at'] or '-'}; reserve {pool['reserve']}%; "
-                      f"operators {','.join(pool['operators'])}")
+                      f"operators {','.join(cast(list[str], pool['operators']))}")
         else:
             return EXIT_USAGE
     elif g == "schedule":
@@ -923,7 +975,7 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
             else:
                 return EXIT_USAGE
         elif act == "list":
-            moment = datetime.now(timezone.utc)
+            moment = datetime.now(UTC)
             rows = R.list_operators(conn)
             print("\n".join(R.describe_operator(conn, o, moment) for o in rows) if rows else "(none)")
         else:
@@ -1006,6 +1058,56 @@ def _dispatch(args: argparse.Namespace, cfg: C.Config, conn: sqlite3.Connection,
     return EXIT_OK
 
 
+def _remind(db: str) -> None:
+    """After an operator's command, remind a session that is not listening, at most every ten minutes. Never raises."""
+    try:
+        op = os.environ.get("SYNERGY_OPERATOR", "").strip().upper()
+        if not op or os.environ.get("SYNERGY_NO_REMIND") == "1" or not os.path.exists(db):
+            return
+        conn = R.open_registry(db, timeout=1.0)
+        try:
+            due = R.reminder_due(conn, op)
+        finally:
+            conn.close()
+        if due:
+            print("[synergy] You are not listening for assignments. Start `synergy inbox wait` as a background command so "
+                  "work reaches you without polling; it costs no tokens while it waits.", file=sys.stderr)
+    except Exception:  # noqa: BLE001
+        return
+
+
+def _session_start_hook() -> int:
+    """Always exits 0 and never raises. For operator sessions only, it adds a short instruction to the session's context."""
+    try:
+        import json
+
+        op = os.environ.get("SYNERGY_OPERATOR", "").strip().upper()
+        if not op or os.environ.get("SYNERGY_HOOK_DISABLED") == "1":
+            return EXIT_OK
+        if os.path.exists(os.path.join(C.config_dir(os.environ), "hook.disabled")):
+            return EXIT_OK
+        cfg, db = _paths()
+        if not os.path.exists(db):
+            return EXIT_OK
+        probe = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            version = probe.execute("SELECT version FROM schema_version").fetchone()[0]
+        finally:
+            probe.close()
+        if version != R.SCHEMA_VERSION:
+            return EXIT_OK
+        conn = R.open_registry(db, timeout=1.5)
+        try:
+            text = R.session_context(conn, op)
+        finally:
+            conn.close()
+        if text:
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}))
+    except Exception:  # noqa: BLE001 - a hook must never break the session it serves
+        return EXIT_OK
+    return EXIT_OK
+
+
 def _stop_hook() -> int:
     """Always exits 0 and never raises: a broken setup must never block a session. Prints a block decision only when the
     session's own operator has a pending assignment and every safety condition in the registry holds."""
@@ -1062,9 +1164,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_USAGE
     if args.group == "inbox" and args.action == "hook":
         return _stop_hook()
+    if args.group == "inbox" and args.action == "session-start":
+        return _session_start_hook()
     try:
         cfg, db = _paths()
-        return _run(args, cfg, db)
+        code = _run(args, cfg, db)
+        if code == EXIT_OK and args.group not in ("init", "review") and not (args.group == "inbox" and args.action == "wait"):
+            _remind(db)
+        return code
     except E.SynergyError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return EXIT_REFUSED

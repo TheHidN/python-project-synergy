@@ -17,7 +17,7 @@
 
 ```bash
 git clone https://github.com/TheHidN/python-project-synergy.git
-cd project-synergy
+cd python-project-synergy
 ./install.sh
 ```
 
