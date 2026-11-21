@@ -1,6 +1,6 @@
 name: PR Checks
 # Authoritative CI enforcement of what the local hooks check (hooks are advisory
-# and may not be installed): conventional PR title, no AI-tells/emoji in the
+# and may not be installed): conventional PR title, no blocked phrases/emoji in the
 # diff, a PR body that follows the template + references an issue, and the
 # gitleaks secret scan.
 #
@@ -72,7 +72,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           # Reuse the exact rules the local pre-commit hook uses.
-          source .claude/hooks/lib.sh
+          source .github/scripts/lib.sh
           fail=0
           while IFS= read -r f; do
             [ -f "$f" ] || continue
@@ -85,10 +85,10 @@ jobs:
               .github/*|*.md|NOTES.txt|*/NOTES.txt) : ;;
               *) e="$(gov_find_emoji < "$f")"; [ -n "$e" ] && { echo "emoji not allowed in $f:"; echo "$e"; fail=1; } ;;
             esac
-            # AI-tells blocked except in files that document the rule.
+            # Blocked phrases are rejected except in files that document the rule.
             case "$f" in
-              CLAUDE.md|*/CLAUDE.md|.claude/*|*/.claude/*|.github/workflows/*|*forbidden-text.txt) : ;;
-              *) t="$(gov_find_file_tells "$f")"; [ -n "$t" ] && { echo "AI-tell not allowed in $f:"; echo "$t"; fail=1; } ;;
+              .github/scripts/*|*/.github/scripts/*|.github/workflows/*|*text-hygiene-terms.txt) : ;;
+              *) t="$(gov_find_file_issues "$f")"; [ -n "$t" ] && { echo "Blocked phrase not allowed in $f:"; echo "$t"; fail=1; } ;;
             esac
           done < <(git diff --name-only --diff-filter=ACM "$BASE" "$HEAD")
           [ "$fail" -eq 0 ] || { echo "pr-hygiene: remove the above before merging."; exit 1; }

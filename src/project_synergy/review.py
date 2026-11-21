@@ -1,5 +1,5 @@
 """Prepare an isolated, ready-made review folder: a frozen read-only copy of the code, the sandbox kit, a brief,
-a settings file that never prompts and a launcher. It starts nothing."""
+a settings file that never asks for permission and a launcher. It starts nothing."""
 
 from __future__ import annotations
 

@@ -32,7 +32,7 @@ EXIT_OK, EXIT_USAGE, EXIT_REFUSED, EXIT_NOT_INIT = 0, 2, 3, 4
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="synergy", description="Project Synergy: coordinate several AI coding operators with shared task ownership."
+        prog="synergy", description="Project Synergy: coordinate several Claude Code sessions (operators) with shared task ownership."
     )
     p.add_argument("--version", action="version", version=f"synergy {__version__}")
     sub = p.add_subparsers(dest="group")
@@ -159,7 +159,7 @@ def _parser() -> argparse.ArgumentParser:
     scs = sc.add_parser("set", help="change one weight")
     scs.add_argument("name")
     scs.add_argument("value")
-    ag = sub.add_parser("agent", help="the shared pool of AI specialist agents every operator can use").add_subparsers(dest="action")
+    ag = sub.add_parser("agent", help="the shared pool of specialist agents every operator can use").add_subparsers(dest="action")
     ar = ag.add_parser("register", help="add an existing specialist to the pool (an operator does this; nothing is sent to it)")
     ar.add_argument("id")
     ar.add_argument("--role", default="")

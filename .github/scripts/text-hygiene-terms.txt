@@ -1,12 +1,11 @@
-# AI-tell text patterns blocked in commit messages, issue/PR titles and bodies,
+# Text patterns blocked in commit messages, issue/PR titles and bodies,
 # comments, and source files. Extended-regex (grep -E), matched case-insensitively.
 # One pattern per line. Lines beginning with # and blank lines are ignored.
 # Emoji are blocked separately by unicode range (see lib.sh), not listed here.
 #
-# Goal: HUMAN WRITE, not CLAUDE WRITE. Every human-facing artifact should read
-# as if a person wrote it. The ACTIVE patterns below are reliable generated-text
-# fingerprints: attribution trailers, assistant self-reference, working-session
-# framing, and the multi-word filler/cliche phrasing that betrays an LLM. They
+# Goal: every human-facing artifact reads plainly and neutrally. The ACTIVE
+# patterns below are attribution trailers, assistant self-reference,
+# working-session framing and multi-word filler phrasing. They
 # are multi-word on purpose, to avoid false positives on real source and docs.
 #
 # Single common buzzwords (robust, comprehensive, leverage, ...) live in the

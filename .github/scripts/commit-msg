@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Git commit-msg hook (enforcement). Requires a Conventional Commit title and
-# rejects AI-tells or emoji anywhere in the message.
+# rejects blocked phrases or emoji anywhere in the message.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=/dev/null
-source "$ROOT/.claude/hooks/lib.sh"
+source "$ROOT/.github/scripts/lib.sh"
 
 msg_file="$1"
 title="$(head -1 "$msg_file")"
@@ -16,11 +16,11 @@ if ! printf '%s' "$title" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|b
   exit 1
 fi
 
-tells="$(gov_find_text_tells < "$msg_file")"
+issues="$(gov_find_text_issues < "$msg_file")"
 emoji="$(gov_find_emoji < "$msg_file")"
-if [ -n "$tells$emoji" ]; then
-  echo "commit-msg: AI-tell or emoji not allowed in commit message:" >&2
-  [ -n "$tells" ] && echo "$tells" >&2
+if [ -n "$issues$emoji" ]; then
+  echo "commit-msg: blocked phrase or emoji not allowed in commit message:" >&2
+  [ -n "$issues" ] && echo "$issues" >&2
   [ -n "$emoji" ] && echo "$emoji" >&2
   exit 1
 fi
