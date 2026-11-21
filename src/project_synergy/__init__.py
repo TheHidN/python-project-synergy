@@ -3,7 +3,7 @@
 Multi-Claude collaboration and orchestration system: shared task registry, operator onboarding and tmux worker management
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def hello(name: str) -> str:
